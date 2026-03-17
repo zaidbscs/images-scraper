@@ -1,30 +1,30 @@
 const express = require('express');
-const Scraper = require('images-scraper');
+const { GOOGLE_IMG_SCRAP } = require('google-img-scrap');
 const cors = require('cors');
 
 const app = express();
-app.use(cors()); // Allows your HTML page to talk to this server
-app.use(express.json());
+app.use(cors()); // Crucial for Codespaces!
 
-const google = new Scraper({
-  puppeteer: {
-    headless: true, // Set to false if you want to watch the browser work
-    args: ['--no-sandbox'] 
-  },
+app.get('/api/search', async (req, res) => {
+    const query = req.query.q;
+    if (!query) return res.status(400).json({ error: "Missing query" });
+
+    try {
+        console.log(`Searching Google for: ${query}`);
+        const data = await GOOGLE_IMG_SCRAP({
+            search: query,
+            limit: 20, // Number of images
+            safeSearch: true
+        });
+        res.json(data.result);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Search failed" });
+    }
 });
 
-app.get('/search', async (req, res) => {
-  const query = req.query.q;
-  if (!query) return res.status(400).json({ error: 'Missing query' });
-
-  try {
-    console.log(`Searching for: ${query}`);
-    // Scraping 15 images for speed
-    const results = await google.scrape(query, 15);
-    res.json(results);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to scrape images' });
-  }
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`✅ Backend running!`);
+    console.log(`👉 In the PORTS tab, make sure port ${PORT} visibility is PUBLIC.`);
 });
-
-app.listen(3000, () => console.log('Server running on http://localhost:3000'));
