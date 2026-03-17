@@ -2,51 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Mini Image Search</title>
+    <title>Mini Google Image Search</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; }
-        #results { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; }
-        .img-card { width: 200px; border: 1px solid #ddd; padding: 5px; border-radius: 8px; }
-        img { width: 100%; height: 150px; object-fit: cover; border-radius: 5px; }
-        input { padding: 10px; width: 300px; }
-        button { padding: 10px 20px; cursor: pointer; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #fafafa; padding: 20px; }
+        .search-container { margin-bottom: 30px; }
+        input { padding: 12px; width: 300px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
+        button { padding: 12px 24px; border-radius: 20px; border: none; background: #4285f4; color: white; cursor: pointer; }
+        
+        #results { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+            gap: 15px; 
+            max-width: 1000px; 
+            margin: 0 auto; 
+        }
+        .card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        img { width: 100%; height: 150px; object-fit: cover; }
+        .title { padding: 8px; font-size: 12px; color: #555; height: 40px; overflow: hidden; }
     </style>
 </head>
 <body>
 
-    <h1>Image Scraper Search</h1>
-    <input type="text" id="query" placeholder="Search for something (e.g. Pizza)">
-    <button onclick="searchImages()">Search</button>
+    <h1>🔍 Mini Image Search</h1>
+    <div class="search-container">
+        <input type="text" id="query" placeholder="Search Google Images...">
+        <button onclick="doSearch()">Search</button>
+    </div>
 
     <div id="results"></div>
 
     <script>
-        async function searchImages() {
+        async function doSearch() {
             const query = document.getElementById('query').value;
             const resultsDiv = document.getElementById('results');
-            
-            if (!query) return alert("Type something first!");
+            if(!query) return;
 
-            resultsDiv.innerHTML = "Searching... please wait (Puppeteer is waking up)";
+            resultsDiv.innerHTML = "Searching...";
 
             try {
-                // We fetch from our LOCAL server, not Google directly
-                const response = await fetch(`http://localhost:3000/search?q=${query}`);
-                const data = await response.json();
+                // AUTO-DETECT CODESPACE URL:
+                // This converts 'localhost' to your unique Codespace address automatically
+                const backendUrl = window.location.origin.replace('8080', '3000');
+                
+                const response = await fetch(`${backendUrl}/api/search?q=${query}`);
+                const images = await response.json();
 
-                resultsDiv.innerHTML = ""; // Clear loading text
-
-                data.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'img-card';
-                    card.innerHTML = `
-                        <img src="${item.url}" alt="${item.title}" onerror="this.src='https://via.placeholder.com/150'">
-                        <p style="font-size: 12px;">${item.title.substring(0, 30)}...</p>
+                resultsDiv.innerHTML = "";
+                images.forEach(img => {
+                    const div = document.createElement('div');
+                    div.className = 'card';
+                    div.innerHTML = `
+                        <img src="${img.url}" onerror="this.src='https://via.placeholder.com/150'">
+                        <div class="title">${img.title || 'No title'}</div>
                     `;
-                    resultsDiv.appendChild(card);
+                    resultsDiv.appendChild(div);
                 });
             } catch (err) {
-                resultsDiv.innerHTML = "Error fetching images. Is the server running?";
+                resultsDiv.innerHTML = "Error: Make sure server.js is running and Port 3000 is Public!";
             }
         }
     </script>
