@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Image Scraper</title>
+    <title>Google Image Scraper v7.0.0</title>
     <style>
         * {
             margin: 0;
@@ -30,7 +30,47 @@
         h1 {
             text-align: center;
             color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .version-badge {
+            text-align: center;
+            color: #667eea;
+            font-weight: bold;
             margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            font-weight: bold;
+        }
+        
+        .search-section {
+            display: none;
+        }
+        
+        .search-section.active {
+            display: block;
         }
         
         .search-box {
@@ -40,7 +80,7 @@
             flex-wrap: wrap;
         }
         
-        input {
+        input, textarea {
             flex: 1;
             padding: 15px;
             border: 2px solid #e0e0e0;
@@ -49,7 +89,12 @@
             transition: border-color 0.3s;
         }
         
-        input:focus {
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        input:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -172,32 +217,79 @@
             border: 1px solid #fcc;
         }
         
+        .multi-result {
+            margin-bottom: 30px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        
+        .multi-result h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
         footer {
             text-align: center;
             margin-top: 30px;
             color: #666;
+        }
+        
+        .help-text {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔍 Google Image Scraper</h1>
+        <div class="version-badge">⚡ Using images-scraper v7.0.0</div>
         
-        <div class="search-box">
-            <input 
-                type="text" 
-                id="searchInput" 
-                placeholder="Enter search term (e.g., bananas, cats, mountains...)"
-                value="bananas"
-            >
-            <select id="limitSelect">
-                <option value="5">5 images</option>
-                <option value="10" selected>10 images</option>
-                <option value="20">20 images</option>
-                <option value="30">30 images</option>
-                <option value="50">50 images</option>
-            </select>
-            <button onclick="searchImages()" id="searchBtn">Search Images</button>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('single')">Single Search</button>
+            <button class="tab" onclick="switchTab('multiple')">Multiple Search</button>
+        </div>
+        
+        <!-- Single Search Section -->
+        <div id="single-search" class="search-section active">
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="Enter search term (e.g., bananas, cats, mountains...)"
+                    value="bananas"
+                >
+                <select id="limitSelect">
+                    <option value="5">5 images</option>
+                    <option value="10" selected>10 images</option>
+                    <option value="20">20 images</option>
+                    <option value="30">30 images</option>
+                    <option value="50">50 images</option>
+                </select>
+                <button onclick="searchImages()" id="searchBtn">Search Images</button>
+            </div>
+        </div>
+        
+        <!-- Multiple Search Section -->
+        <div id="multiple-search" class="search-section">
+            <div class="search-box">
+                <textarea 
+                    id="multiInput" 
+                    placeholder="Enter multiple search terms (one per line)&#10;Example:&#10;bananas&#10;cats&#10;mountains&#10;dogs"
+                >bananas
+cats
+mountains</textarea>
+                <select id="multiLimitSelect">
+                    <option value="3">3 images each</option>
+                    <option value="5" selected>5 images each</option>
+                    <option value="10">10 images each</option>
+                </select>
+                <button onclick="searchMultiple()" id="multiBtn">Search All</button>
+            </div>
         </div>
         
         <div class="loading" id="loading">
@@ -209,79 +301,140 @@
         
         <div id="stats" class="stats"></div>
         
-        <div class="results" id="results"></div>
+        <div id="results" class="results"></div>
         
         <footer>
-            <p>Powered by images-scraper npm package</p>
+            <p>Powered by images-scraper v7.0.0 | Google Images Search</p>
         </footer>
     </div>
 
     <script>
+        let currentTab = 'single';
+        
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach((btn, index) => {
+                if ((tab === 'single' && index === 0) || (tab === 'multiple' && index === 1)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Update sections
+            document.getElementById('single-search').classList.toggle('active', tab === 'single');
+            document.getElementById('multiple-search').classList.toggle('active', tab === 'multiple');
+            
+            // Clear results when switching tabs
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('stats').innerHTML = '';
+            document.getElementById('error').style.display = 'none';
+        }
+        
         async function searchImages() {
             const query = document.getElementById('searchInput').value.trim();
             const limit = document.getElementById('limitSelect').value;
-            const searchBtn = document.getElementById('searchBtn');
-            const loading = document.getElementById('loading');
-            const results = document.getElementById('results');
-            const stats = document.getElementById('stats');
-            const error = document.getElementById('error');
             
             if (!query) {
                 showError('Please enter a search term');
                 return;
             }
             
+            await performSearch('/api/search', { query, limit: parseInt(limit) });
+        }
+        
+        async function searchMultiple() {
+            const input = document.getElementById('multiInput').value.trim();
+            const limit = document.getElementById('multiLimitSelect').value;
+            
+            if (!input) {
+                showError('Please enter search terms');
+                return;
+            }
+            
+            // Split by new line and filter empty lines
+            const queries = input.split('\n')
+                .map(q => q.trim())
+                .filter(q => q.length > 0);
+            
+            if (queries.length === 0) {
+                showError('Please enter at least one search term');
+                return;
+            }
+            
+            await performSearch('/api/search-multiple', { queries, limit: parseInt(limit) });
+        }
+        
+        async function performSearch(endpoint, data) {
+            const searchBtn = currentTab === 'single' ? 'searchBtn' : 'multiBtn';
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const stats = document.getElementById('stats');
+            const error = document.getElementById('error');
+            
             // Show loading, hide previous results and error
             loading.style.display = 'block';
             results.innerHTML = '';
             stats.innerHTML = '';
             error.style.display = 'none';
-            searchBtn.disabled = true;
+            document.getElementById(searchBtn).disabled = true;
             
             try {
-                const response = await fetch('/api/search', {
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ query, limit: parseInt(limit) })
+                    body: JSON.stringify(data)
                 });
                 
-                const data = await response.json();
+                const result = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Failed to fetch images');
+                    throw new Error(result.error || 'Failed to fetch images');
                 }
                 
-                if (data.images && data.images.length > 0) {
-                    displayResults(data.images, query);
-                    stats.innerHTML = `Found ${data.images.length} images for "${query}"`;
+                if (endpoint === '/api/search') {
+                    // Single search results
+                    if (result.images && result.images.length > 0) {
+                        displayResults(result.images, result.query);
+                        stats.innerHTML = `✅ Found ${result.images.length} images for "${result.query}"`;
+                    } else {
+                        results.innerHTML = '<p style="text-align: center; color: #666;">No images found. Try a different search term.</p>';
+                    }
                 } else {
-                    results.innerHTML = '<p style="text-align: center; color: #666;">No images found. Try a different search term.</p>';
+                    // Multiple search results
+                    displayMultipleResults(result.results);
+                    stats.innerHTML = `✅ Found images for ${result.results.length} search terms`;
                 }
                 
             } catch (err) {
                 showError(err.message || 'An error occurred while searching');
             } finally {
                 loading.style.display = 'none';
-                searchBtn.disabled = false;
+                document.getElementById(searchBtn).disabled = false;
             }
         }
         
         function displayResults(images, query) {
             const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
             
             images.forEach((img, index) => {
                 const card = document.createElement('div');
                 card.className = 'image-card';
                 
+                const sourceUrl = img.source || '#';
+                const sourceDomain = img.source ? new URL(img.source).hostname : 'Google Images';
+                
                 card.innerHTML = `
                     <img src="${img.url}" alt="${img.title || query}" onerror="this.src='https://via.placeholder.com/300?text=Image+Not+Available'">
                     <div class="image-info">
                         <p><strong>Title:</strong> ${img.title || 'No title'}</p>
-                        <p><strong>Source:</strong> <a href="${img.source}" target="_blank" rel="noopener noreferrer">${new URL(img.source).hostname}</a></p>
-                        <p><small>Click image to view full size</small></p>
-                        <a href="${img.url}" target="_blank" rel="noopener noreferrer">View Image →</a>
+                        <p><strong>Source:</strong> <a href="${sourceUrl}" target="_blank" rel="noopener noreferrer">${sourceDomain}</a></p>
+                        <a href="${img.url}" target="_blank" rel="noopener noreferrer">🔗 View Full Image</a>
                     </div>
                 `;
                 
@@ -289,15 +442,50 @@
             });
         }
         
+        function displayMultipleResults(results) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            results.forEach(item => {
+                const section = document.createElement('div');
+                section.className = 'multi-result';
+                
+                const queryTitle = document.createElement('h3');
+                queryTitle.textContent = `📁 ${item.query} (${item.images.length} images)`;
+                section.appendChild(queryTitle);
+                
+                const imagesGrid = document.createElement('div');
+                imagesGrid.style.display = 'grid';
+                imagesGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+                imagesGrid.style.gap = '15px';
+                
+                item.images.forEach(img => {
+                    const card = document.createElement('div');
+                    card.className = 'image-card';
+                    card.innerHTML = `
+                        <img src="${img.url}" alt="${img.title || item.query}" onerror="this.src='https://via.placeholder.com/200?text=Error'">
+                        <div class="image-info">
+                            <p><small>${img.title ? img.title.substring(0, 50) + '...' : 'No title'}</small></p>
+                            <a href="${img.url}" target="_blank">View</a>
+                        </div>
+                    `;
+                    imagesGrid.appendChild(card);
+                });
+                
+                section.appendChild(imagesGrid);
+                resultsDiv.appendChild(section);
+            });
+        }
+        
         function showError(message) {
             const error = document.getElementById('error');
             error.style.display = 'block';
-            error.textContent = message;
+            error.textContent = '❌ ' + message;
         }
         
-        // Allow Enter key to search
+        // Allow Enter key to search in single mode
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && currentTab === 'single') {
                 searchImages();
             }
         });
