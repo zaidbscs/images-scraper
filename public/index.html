@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Image Scraper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        select, button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        select {
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .image-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .image-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .image-info {
+            padding: 15px;
+        }
+        
+        .image-info p {
+            margin-bottom: 8px;
+            font-size: 14px;
+            word-break: break-all;
+        }
+        
+        .image-info a {
+            color: #667eea;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        
+        .image-info a:hover {
+            text-decoration: underline;
+        }
+        
+        .stats {
+            text-align: center;
+            color: #666;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+            border: 1px solid #fcc;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Google Image Scraper</h1>
+        
+        <div class="search-box">
+            <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Enter search term (e.g., bananas, cats, mountains...)"
+                value="bananas"
+            >
+            <select id="limitSelect">
+                <option value="5">5 images</option>
+                <option value="10" selected>10 images</option>
+                <option value="20">20 images</option>
+                <option value="30">30 images</option>
+                <option value="50">50 images</option>
+            </select>
+            <button onclick="searchImages()" id="searchBtn">Search Images</button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Searching Google Images... This may take a few seconds.</p>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="stats" class="stats"></div>
+        
+        <div class="results" id="results"></div>
+        
+        <footer>
+            <p>Powered by images-scraper npm package</p>
+        </footer>
+    </div>
+
+    <script>
+        async function searchImages() {
+            const query = document.getElementById('searchInput').value.trim();
+            const limit = document.getElementById('limitSelect').value;
+            const searchBtn = document.getElementById('searchBtn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const stats = document.getElementById('stats');
+            const error = document.getElementById('error');
+            
+            if (!query) {
+                showError('Please enter a search term');
+                return;
+            }
+            
+            // Show loading, hide previous results and error
+            loading.style.display = 'block';
+            results.innerHTML = '';
+            stats.innerHTML = '';
+            error.style.display = 'none';
+            searchBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query, limit: parseInt(limit) })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch images');
+                }
+                
+                if (data.images && data.images.length > 0) {
+                    displayResults(data.images, query);
+                    stats.innerHTML = `Found ${data.images.length} images for "${query}"`;
+                } else {
+                    results.innerHTML = '<p style="text-align: center; color: #666;">No images found. Try a different search term.</p>';
+                }
+                
+            } catch (err) {
+                showError(err.message || 'An error occurred while searching');
+            } finally {
+                loading.style.display = 'none';
+                searchBtn.disabled = false;
+            }
+        }
+        
+        function displayResults(images, query) {
+            const resultsDiv = document.getElementById('results');
+            
+            images.forEach((img, index) => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                
+                card.innerHTML = `
+                    <img src="${img.url}" alt="${img.title || query}" onerror="this.src='https://via.placeholder.com/300?text=Image+Not+Available'">
+                    <div class="image-info">
+                        <p><strong>Title:</strong> ${img.title || 'No title'}</p>
+                        <p><strong>Source:</strong> <a href="${img.source}" target="_blank" rel="noopener noreferrer">${new URL(img.source).hostname}</a></p>
+                        <p><small>Click image to view full size</small></p>
+                        <a href="${img.url}" target="_blank" rel="noopener noreferrer">View Image →</a>
+                    </div>
+                `;
+                
+                resultsDiv.appendChild(card);
+            });
+        }
+        
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.style.display = 'block';
+            error.textContent = message;
+        }
+        
+        // Allow Enter key to search
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchImages();
+            }
+        });
+        
+        // Load default search on page load
+        window.onload = () => {
+            searchImages();
+        };
+    </script>
+</body>
+</html>
